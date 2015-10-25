@@ -11,43 +11,73 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define MAXLINE  4096
-
 using namespace std;
 
-
-
-int main(int argc, char **argv) {
-    int sockfd;
-    char buf[MAXLINE + 1];
+int main()
+{
+    int sock, listener;
     struct sockaddr_in servaddr;
-    
-    //создаем потоковый сокет
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        cout << "socket error";
-    
-    
-    //заполняем структуру
-    bzero(&servaddr, sizeof(servaddr)); // заполняем всю структуру нулями
-    servaddr.sin_family = AF_INET; //будем работать с интернетом, а не с ...
-    servaddr.sin_port = htons(13); /* сервер времени и даты */
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    
-    bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    
-    listen(sockfd, 8);
-    
-    time_t ticks;
-    int client;
-    
-    while(1) {
-        client = accept(sockfd, NULL, NULL);
-        
-        ticks = time(NULL);
-        snprintf(buf, sizeof(buf), "current time is %.24s\er\en", ctime(&ticks));
-        write(client, buf, strlen(buf));
-        
-        close(client);
+    char buf[1024];
+    int bytes_read;
+
+    cout << "starting server initialization" << endl;
+
+    listener = socket(AF_INET, SOCK_STREAM, 0);
+    if(listener < 0)
+    {
+        cout << "socket";
+        return(0);
     }
-    return(0);
+    
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(3425);
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if(bind(listener, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
+    {
+        cout << "bind" << endl;
+        return(0);
+    }
+
+    listen(listener, 8);
+
+    cout << "server initialized on socket " << listener << endl;
+
+    int counter = 0;
+    cout << "Keep working? (y/n)" << endl;
+    while(1)
+    {
+        char t;
+        cin >> t;
+        if (t != 'y')
+            break;
+        counter++;
+        cout << "waiting for connection " << counter << endl;
+        sock = accept(listener, NULL, NULL);
+        cout << "accept done" << endl;
+        if(sock < 0)
+        {
+            cout << "accept" << endl;
+            return(0);
+        }
+
+        while(1)
+        {
+            bytes_read = recv(sock, buf, 1024, 0);
+            //for (int i = 0; i < bytes_read; i++) {
+              //  *(buf + 8 + i) = *(buf + i);
+            //}
+            strcpy(buf + 8, buf);
+            strcpy(buf, "Hello, ");
+            if(bytes_read <= 0) {
+                cout << "connection " << counter << " finished. Continue? (y/n)" << endl;
+                close(sock);
+                break;
+            }
+            send(sock, buf, bytes_read + 8, 0);
+        }
+    
+        close(sock);
+    }
+    
+    return 0;
 }
