@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     else
         servaddr.sin_port = htons(atoi(argv[2]));
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if(bind(listener, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
+    if (bind(listener, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
     {
         cout << "bind" << endl;
         return(0);
@@ -120,9 +120,8 @@ int main(int argc, char *argv[]) {
             char addres[100];
             char args[100];
             che_to_tam(sock, type, addres, args);
-            int i = 0;
-
             if (strcmp(type, "GET") == 0) {
+                cout << "GET request" << endl;
                 char fullname[1000];
                 char name_for_exec[1002];
                 char folder[100];
@@ -135,6 +134,7 @@ int main(int argc, char *argv[]) {
                 struct stat file;
                 if (stat(fullname, &file) != -1){
                     if (access(fullname, F_OK | X_OK) == 0) {
+                        cout << "Executed file " << fullname << "\n";
                         int p1[2];
                         pipe(p1);
                         if (!fork()){
@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
                             close(p1[0]);
                         }
                     } else if ((S_ISREG(file.st_mode) == true) && (access(fullname, F_OK | R_OK) == 0)) {
+                        cout << "Regular file file " << fullname << "\n";
                         int fd = open(fullname, O_RDONLY);
                         char *file_text;
                         int length = lseek(fd, 0, SEEK_END);
@@ -162,8 +163,9 @@ int main(int argc, char *argv[]) {
                         send(sock, file_text, length, 0);
                         close(fd);
                     } else {
-                        strcpy(fullname, "404");
-                        int fd = open(fullname, O_RDONLY);
+                        cout << "Page not found\n";
+                        string no_page = string(folder) + "/404";
+                        int fd = open(no_page.c_str(), O_RDONLY);
                         char *file_text;
                         int length = lseek(fd, 0, SEEK_END);
                         file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
@@ -172,6 +174,7 @@ int main(int argc, char *argv[]) {
                         close(fd);
                     }
                 } else {
+                    cout << "Page not found\n";
                     strcpy(fullname, "404");
                     int fd = open(fullname, O_RDONLY);
                     char *file_text;
