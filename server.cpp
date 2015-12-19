@@ -130,6 +130,8 @@ int main(int argc, char *argv[]) {
                 else
                     strcpy(folder, argv[1]);
                 sprintf(fullname, "%s%s", folder, addres);
+                cout << addres << endl;
+
                 sprintf(name_for_exec, "%s%s%s", "./", folder, addres);
                 struct stat file;
                 if (stat(fullname, &file) != -1){
@@ -163,8 +165,8 @@ int main(int argc, char *argv[]) {
                         send(sock, file_text, length, 0);
                         close(fd);
                     } else {
-                        cout << "Page not found\n";
-                        string no_page = string(folder) + "/404";
+                        cout << "Page not found - 1\n";
+                        string no_page = string(folder) + "/404.html";
                         int fd = open(no_page.c_str(), O_RDONLY);
                         char *file_text;
                         int length = lseek(fd, 0, SEEK_END);
@@ -174,9 +176,11 @@ int main(int argc, char *argv[]) {
                         close(fd);
                     }
                 } else {
-                    cout << "Page not found\n";
-                    strcpy(fullname, "404");
+                    cout << "Page not found - 2\n";
+                    strcpy(fullname, "404.html");
+                    cout << fullname << endl;
                     int fd = open(fullname, O_RDONLY);
+                    cout << fd << endl;
                     char *file_text;
                     int length = lseek(fd, 0, SEEK_END);
                     file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
