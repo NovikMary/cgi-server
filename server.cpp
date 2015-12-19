@@ -16,7 +16,8 @@
 #include <signal.h>
 
 #include <sys/stat.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
@@ -34,7 +35,7 @@ void che_to_tam(int socket, char *type, char *addr, char *args) {
     int len;
     while (((len = recv(socket, &buf, size, 0)) > 0) && (fl == 0)) {
         for (int i = 0; i < len; i++) {
-            if (buf[i] == '\n') {//&& (k != 0) && (request[k - 1] == '\r')){
+            if (buf[i] == '\n') {
                 request[k] = buf[i];
                 fl = 1;
                 break;
@@ -43,7 +44,6 @@ void che_to_tam(int socket, char *type, char *addr, char *args) {
                 k++;
             }
         }
-        cout << request << endl;
     }
     int i = 0;
     while (request[i] != ' ') {
@@ -70,7 +70,7 @@ void che_to_tam(int socket, char *type, char *addr, char *args) {
 }
 
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     int sock, listener;
     struct sockaddr_in servaddr;
     char buf[1024];
@@ -86,7 +86,10 @@ int main(int argc, char *argv[]){
     }
     
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(3425);
+    if (argc < 3)
+        servaddr.sin_port = htons(3425);
+    else
+        servaddr.sin_port = htons(atoi(argv[2]));
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     if(bind(listener, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
     {
@@ -102,72 +105,86 @@ int main(int argc, char *argv[]){
 
     while(1)
     {
-        /*char t;
-        cin >> t;
-        if (t != 'y')
-            break;*/
         counter++;
         cout << "waiting for connection " << counter << endl;
 
-
-
-        if ((sock = accept(listener, NULL, NULL)) > 0) { //--- дескриптор файла, который необходимо обработать и считать все нужное из файла до \r\n\r\n
-            if (!fork()) {
-                cout << "accept of connection " << counter << " is done" << endl;
-                if(sock < 0)
-                {
-                    cout << "accept" << endl;
-                    return(0);
-                }
-
-                while(1)
-                {
-                    char type[5];
-                    char addres[100];
-                    char args[100];
-                    che_to_tam(sock, type, addres, args);
-                    if (strcmp(type, "GET") == 0) {
-                        char fullname[1000];
-                        sprintf(fullname, "%s/%s", argv[1], addres);
-                        struct stat file;
-                        if (stat(fullname, &file) != -1){
-                            if ((S_ISREG(file.st_mode) == true) && (access(fullname, F_OK) == 0) && ((access(fullname, R_OK) == 0))) {
-
-                                int fd = open(fullname, O_RDONLY);
-                                char *file_text; 
-                                int length = lseek(fd, 0, SEEK_END);
-                                file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
-
-                                send(sock, file_text, length, 0);
-                                close(fd);
-                            } else if ((access(fullname, F_OK) == 0) &&(access(fullname, X_OK) == 0)){
-                                int p1[2];
-                                pipe(p1);
-                                if (!fork()){
-                                    close(p1[0]);
-                                    dup2(p1[1],1);
-                                    close(p1[1]);
-                                    execlp(addres, addres, args);
-                                    exit(0);
-                                } else {
-                                    close(p1[1]);
-                                    wait(NULL);
-                                    int part_size;
-                                    char buf[200];
-                                    while ((part_size = read(p1[0], &buf, 200)) > 0) {
-                                        send(sock, buf,part_size,0);
-                                    }
-                                }
-                            } else {
-                            send(sock, "file does not exist\n", 20, 0);
-                            }
-                        }
-                    }
-                }
-            
-                close(sock);
-                exit(0);
+        if (((sock = accept(listener, NULL, NULL)) > 0) && (!fork())) {
+            cout << "accept of connection " << counter << " is done" << endl;
+            if(sock < 0)
+            {
+                cout << "accept" << endl;
+                return(0);
             }
+
+            char type[5];
+            char addres[100];
+            char args[100];
+            che_to_tam(sock, type, addres, args);
+            int i = 0;
+
+            if (strcmp(type, "GET") == 0) {
+                char fullname[1000];
+                char name_for_exec[1002];
+                char folder[100];
+                if (argc < 2)
+                    strcpy(folder, "pages");
+                else
+                    strcpy(folder, argv[1]);
+                sprintf(fullname, "%s%s", folder, addres);
+                sprintf(name_for_exec, "%s%s%s", "./", folder, addres);
+                struct stat file;
+                if (stat(fullname, &file) != -1){
+                    if (access(fullname, F_OK | X_OK) == 0) {
+                        int p1[2];
+                        pipe(p1);
+                        if (!fork()){
+                            close(p1[0]);
+                            dup2(p1[1],1);
+                            close(p1[1]);
+                            cout << execlp(name_for_exec, name_for_exec, NULL);
+                            exit(0);
+                        } else {
+                            close(p1[1]);
+                            wait(NULL);
+                            int part_size;
+                            char buf[200];
+                            while ((part_size = read(p1[0], &buf, 200)) > 0) {
+                                send(sock, buf, part_size, 0);
+                            }
+                            close(p1[0]);
+                        }
+                    } else if ((S_ISREG(file.st_mode) == true) && (access(fullname, F_OK | R_OK) == 0)) {
+                        int fd = open(fullname, O_RDONLY);
+                        char *file_text;
+                        int length = lseek(fd, 0, SEEK_END);
+                        file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
+
+                        send(sock, file_text, length, 0);
+                        close(fd);
+                    } else {
+                        strcpy(fullname, "404");
+                        int fd = open(fullname, O_RDONLY);
+                        char *file_text;
+                        int length = lseek(fd, 0, SEEK_END);
+                        file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
+
+                        send(sock, file_text, length, 0);
+                        close(fd);
+                    }
+                } else {
+                    strcpy(fullname, "404");
+                    int fd = open(fullname, O_RDONLY);
+                    char *file_text;
+                    int length = lseek(fd, 0, SEEK_END);
+                    file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
+
+                    send(sock, file_text, length, 0);
+                    close(fd);
+                }
+            }
+        
+            close(sock);
+            exit(0);
         }
     }
     
