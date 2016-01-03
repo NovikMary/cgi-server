@@ -134,6 +134,7 @@ int main(int argc, char *argv[]) {
 
                 sprintf(name_for_exec, "%s%s%s", "./", folder, addres);
                 struct stat file;
+                
                 if (stat(fullname, &file) != -1){
                     if (access(fullname, F_OK | X_OK) == 0) {
                         cout << "Executed file " << fullname << "\n";
@@ -150,6 +151,10 @@ int main(int argc, char *argv[]) {
                             wait(NULL);
                             int part_size;
                             char buf[200];
+
+                            string header_executed = "HTTP/1.1 200 OK\r\n";
+                            send (sock, header_executed.c_str(), header_executed.length(), 0);
+
                             while ((part_size = read(p1[0], &buf, 200)) > 0) {
                                 send(sock, buf, part_size, 0);
                             }
@@ -161,7 +166,9 @@ int main(int argc, char *argv[]) {
                         char *file_text;
                         int length = lseek(fd, 0, SEEK_END);
                         file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
+                        string header_static = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + to_string(length) + "\r\n\r\n";
 
+                        send (sock, header_static.c_str(), header_static.length(), 0);
                         send(sock, file_text, length, 0);
                         close(fd);
                     } else {
@@ -170,8 +177,10 @@ int main(int argc, char *argv[]) {
                         int fd = open(no_page.c_str(), O_RDONLY);
                         char *file_text;
                         int length = lseek(fd, 0, SEEK_END);
-                        file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
+                        string header_not_found = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + to_string(length) + "\r\n\r\n";
+                        send (sock, header_not_found.c_str(), header_not_found.length(), 0);
 
+                        file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
                         send(sock, file_text, length, 0);
                         close(fd);
                     }
@@ -183,8 +192,11 @@ int main(int argc, char *argv[]) {
                     cout << fd << endl;
                     char *file_text;
                     int length = lseek(fd, 0, SEEK_END);
-                    file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
 
+                    string header_not_found = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + to_string(length) + "\r\n\r\n";
+                    send (sock, header_not_found.c_str(), header_not_found.length(), 0);
+
+                    file_text = (char*)mmap(NULL, length, PROT_READ, MAP_SHARED, fd, 0);
                     send(sock, file_text, length, 0);
                     close(fd);
                 }
