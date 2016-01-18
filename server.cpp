@@ -86,10 +86,13 @@ int main(int argc, char *argv[]) {
     }
     
     servaddr.sin_family = AF_INET;
-    if (argc < 3)
+    if (argc < 2) {
         servaddr.sin_port = htons(3425);
-    else
-        servaddr.sin_port = htons(atoi(argv[2]));
+        cout << "server attached to port 3425" << endl;
+    } else {
+        servaddr.sin_port = htons(atoi(argv[1]));
+        cout << "server attached to port " << argv[1] << endl;
+    }
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     if (bind(listener, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
     {
@@ -122,13 +125,17 @@ int main(int argc, char *argv[]) {
             che_to_tam(sock, type, addres, args);
             if (strcmp(type, "GET") == 0) {
                 cout << "GET request" << endl;
+
+                if (strcmp(addres, "/") == 0)
+                    strcpy(addres, "/index.html");
                 char fullname[1000];
                 char name_for_exec[1002];
                 char folder[100];
-                if (argc < 2)
+                cout << "Your requered adress is " << addres << endl;
+                if (argc < 3)
                     strcpy(folder, "pages");
                 else
-                    strcpy(folder, argv[1]);
+                    strcpy(folder, argv[2]);
                 sprintf(fullname, "%s%s", folder, addres);
                 cout << addres << endl;
 
@@ -157,7 +164,9 @@ int main(int argc, char *argv[]) {
 
                             while ((part_size = read(p1[0], &buf, 200)) > 0) {
                                 send(sock, buf, part_size, 0);
+                                cout << buf;
                             }
+                            cout << "\nfinal\n";
                             close(p1[0]);
                         }
                     } else if ((S_ISREG(file.st_mode) == true) && (access(fullname, F_OK | R_OK) == 0)) {
@@ -201,7 +210,7 @@ int main(int argc, char *argv[]) {
                     close(fd);
                 }
             }
-        
+            cout << "it's your time to die\n" << endl;
             close(sock);
             exit(0);
         }
