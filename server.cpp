@@ -103,6 +103,7 @@ void thread_function(const int &sock, const string &folder) {
         if (stat(fullname, &file) != -1){
             if (access(fullname, F_OK | X_OK) == 0) {
                 cout << "Executed file " << fullname << "\n";
+                setenv("QUERY_STRING", args, 1);
                 int p1[2];
                 pipe(p1);
                 if (!fork()){
